@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "../include/tree.h"
+#include "tree.h"
 
 TEST(ads9, test1) {
     PMTree tree(std::vector<char>{'1', '2', '3'});
@@ -27,9 +27,4 @@ TEST(ads9, test4) {
     PMTree tree(std::vector<char>{'1', '2', '3'});
     std::vector<char> result = getPerm2(tree, 8);
     ASSERT_EQ(result.size(), 0);
-}
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
 }
