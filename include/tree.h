@@ -4,52 +4,42 @@
 
 #include <vector>
 #include <memory>
-#include <algorithm>
+#include <cstddef>
 
-// Узел дерева перестановок
-struct TreeNode {
+struct Node {
     char value;
-    std::vector<std::shared_ptr<TreeNode>> children;
-
-    explicit TreeNode(char val) : value(val) {}
+    std::vector<std::shared_ptr<Node>> children;
+    
+    explicit Node(char val) : value(val) {}
 };
 
 class PMTree {
- private:
-    std::shared_ptr<TreeNode> root;
-    std::vector<char> elements;
-
-    void buildTree(std::shared_ptr<TreeNode> node,
-                   std::vector<char> remaining);
-
-    void collectPerms(std::shared_ptr<TreeNode> node,
-                     std::vector<char>& current,
-                     std::vector<std::vector<char>>& result);
-
-    bool findPermByNum(std::shared_ptr<TreeNode> node,
+private:
+    std::shared_ptr<Node> root;
+    int size;
+    
+    void buildTree(std::shared_ptr<Node> node, std::vector<char> remaining);
+    
+    void collectPerms(std::shared_ptr<Node> node, 
                       std::vector<char>& current,
-                      int& counter, int targetNum,
-                      std::vector<char>& result);
+                      std::vector<std::vector<char>>& result) const;
+    
+    int getSubtreePermCount(std::shared_ptr<Node> node, int depth) const;
 
-    bool navigateToPerm(std::shared_ptr<TreeNode> node,
-                       std::vector<char>& current,
-                       int targetNum, std::vector<char>& result,
-                       int& index);
-
- public:
-    explicit PMTree(const std::vector<char>& input);
-
-    std::vector<std::vector<char>> getAllPerms();
-
+public:
+    explicit PMTree(const std::vector<char>& symbols);
+    
+    std::shared_ptr<Node> getRoot() const { return root; }
+    
+    int getSize() const { return size; }
+    
     friend std::vector<std::vector<char>> getAllPerms(PMTree& tree);
     friend std::vector<char> getPerm1(PMTree& tree, int num);
     friend std::vector<char> getPerm2(PMTree& tree, int num);
-
-    std::shared_ptr<TreeNode> getRoot() const { return root; }
 };
 
 std::vector<std::vector<char>> getAllPerms(PMTree& tree);
 std::vector<char> getPerm1(PMTree& tree, int num);
-std::vector<char> getPerm2(PMTree& tree, int num);
+std::vector<char> getPerm2(PMTree& tree, int num);  // навигация по дереву
 
 #endif  // INCLUDE_TREE_H_
