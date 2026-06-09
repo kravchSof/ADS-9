@@ -1,202 +1,134 @@
 // Copyright 2022 NNTU-CS
 #include "../include/tree.h"
 #include <algorithm>
-#include <memory>
-#include <vector>
+#include <functional>
+#include <cmath>
 
-PMTree::PMTree(const std::vector<char>& input) : elements(input) {
-    if (input.empty()) {
+PMTree::PMTree(const std::vector<char>& symbols) {
+    size = symbols.size();
+    if (symbols.empty()) {
         root = nullptr;
         return;
     }
-
-    root = std::make_shared<TreeNode>('\0');
-    buildTree(root, input);
+    
+    std::vector<char> sorted = symbols;
+    std::sort(sorted.begin(), sorted.end());
+    
+    root = std::make_shared<Node>('\0');
+    buildTree(root, sorted);
 }
 
-void PMTree::buildTree(std::shared_ptr<TreeNode> node,
-                       std::vector<char> remaining) {
-    if (remaining.empty()) {
-        return;
-    }
-
-    std::sort(remaining.begin(), remaining.end());
-
+void PMTree::buildTree(std::shared_ptr<Node> node, std::vector<char> remaining) {
+    if (remaining.empty()) return;
+    
     for (char c : remaining) {
-        auto child = std::make_shared<TreeNode>(c);
+        auto child = std::make_shared<Node>(c);
         node->children.push_back(child);
-
+        
         std::vector<char> newRemaining;
-        for (char val : remaining) {
-            if (val != c) {
-                newRemaining.push_back(val);
+        for (char rc : remaining) {
+            if (rc != c) {
+                newRemaining.push_back(rc);
             }
         }
-
+        
         buildTree(child, newRemaining);
     }
 }
 
-void PMTree::collectPerms(std::shared_ptr<TreeNode> node,
-                         std::vector<char>& current,
-                         std::vector<std::vector<char>>& result) {
+void PMTree::collectPerms(std::shared_ptr<Node> node, 
+                          std::vector<char>& current,
+                          std::vector<std::vector<char>>& result) const {
     if (!node) return;
-
+    
     if (node->value != '\0') {
         current.push_back(node->value);
     }
-
-    if (node->children.empty() && node->value != '\0') {
+    
+    if (current.size() == static_cast<size_t>(size)) {
         result.push_back(current);
     } else {
         for (auto& child : node->children) {
             collectPerms(child, current, result);
         }
     }
-
+    
     if (node->value != '\0') {
         current.pop_back();
     }
 }
 
-std::vector<std::vector<char>> PMTree::getAllPerms() {
+std::vector<std::vector<char>> getAllPerms(PMTree& tree) {
     std::vector<std::vector<char>> result;
+    if (!tree.root || tree.size == 0) return result;
+    
     std::vector<char> current;
-    if (root) {
-        collectPerms(root, current, result);
+    tree.collectPerms(tree.root, current, result);
+    return result;
+}
+
+int PMTree::getSubtreePermCount(std::shared_ptr<Node> node, int depth) const {
+    if (!node) return 0;
+    if (depth == 0) return 1;
+    
+    int count = 0;
+    for (auto& child : node->children) {
+        count += getSubtreePermCount(child, depth - 1);
+    }
+    return count;
+}
+
+std::vector<char> getPerm1(PMTree& tree, int num) {
+    if (num <= 0) return std::vector<char>();
+    
+    auto allPerms = getAllPerms(tree);
+    if (num > static_cast<int>(allPerms.size())) {
+        return std::vector<char>();
+    }
+    
+    return allPerms[num - 1];
+}
+
+int factorial(int n) {
+    int result = 1;
+    for (int i = 2; i <= n; ++i) {
+        result *= i;
     }
     return result;
 }
 
-std::vector<std::vector<char>> getAllPerms(PMTree& tree) {
-    return tree.getAllPerms();
-}
-
-bool PMTree::findPermByNum(std::shared_ptr<TreeNode> node,
-                          std::vector<char>& current,
-                          int& counter, int targetNum,
-                          std::vector<char>& result) {
-    if (!node) return false;
-
-    if (node->value != '\0') {
-        current.push_back(node->value);
-    }
-
-    if (node->children.empty() && node->value != '\0') {
-        counter++;
-        if (counter == targetNum) {
-            result = current;
-            if (node->value != '\0') current.pop_back();
-            return true;
-        }
-    } else {
-        for (auto& child : node->children) {
-            if (findPermByNum(child, current, counter,
-                            targetNum, result)) {
-                if (node->value != '\0') current.pop_back();
-                return true;
-            }
-        }
-    }
-
-    if (node->value != '\0') {
-        current.pop_back();
-    }
-    return false;
-}
-
-bool PMTree::navigateToPerm(std::shared_ptr<TreeNode> node,
-                           std::vector<char>& current,
-                           int targetNum, std::vector<char>& result,
-                           int& index) {
-    if (!node) return false;
-
-    if (node->value == '\0') {
-        if (!node->children.empty()) {
-            return navigateToPerm(node->children[0], current,
-                                targetNum, result, index);
-        }
-        return false;
-    }
-
-    current.push_back(node->value);
-
-    if (node->children.empty()) {
-        index++;
-        if (index == targetNum) {
-            result = current;
-            current.pop_back();
-            return true;
-        }
-        current.pop_back();
-        return false;
-    }
-
-    int permsInSubtree = 1;
-    for (size_t i = node->children.size(); i > 1; i--) {
-        permsInSubtree *= static_cast<int>(i);
-    }
-
-    int subtreeIndex = 0;
-    int cumulative = 0;
-
-    for (size_t i = 0; i < node->children.size(); i++) {
-        if (targetNum <= cumulative + permsInSubtree) {
-            subtreeIndex = static_cast<int>(i);
-            break;
-        }
-        cumulative += permsInSubtree;
-    }
-
-    if (subtreeIndex < static_cast<int>(node->children.size())) {
-        if (navigateToPerm(node->children[subtreeIndex], current,
-                          targetNum - cumulative, result, index)) {
-            return true;
-        }
-    }
-
-    current.pop_back();
-    return false;
-}
-
-std::vector<char> getPerm1(PMTree& tree, int num) {
-    if (num <= 0) return {};
-
-    std::vector<char> result;
-    std::vector<char> current;
-    int counter = 0;
-
-    if (tree.getRoot() && !tree.getRoot()->children.empty()) {
-        // Исправленный вызов метода
-        if (tree.findPermByNum(tree.getRoot()->children[0], current,
-                              counter, num, result)) {
-            return result;
-        }
-    }
-
-    return {};
-}
-
 std::vector<char> getPerm2(PMTree& tree, int num) {
-    if (num <= 0) return {};
-
-    int totalPerms = 1;
-    for (size_t i = 2; i <= tree.elements.size(); i++) {
-        totalPerms *= static_cast<int>(i);
+    if (num <= 0 || !tree.root || tree.size == 0) {
+        return std::vector<char>();
     }
-
-    if (num > totalPerms) return {};
-
+    
+    int totalPerms = factorial(tree.size);
+    if (num > totalPerms) {
+        return std::vector<char>();
+    }
+    
     std::vector<char> result;
-    std::vector<char> current;
-    int index = 0;
-
-    if (tree.getRoot() && !tree.getRoot()->children.empty()) {
-        if (tree.navigateToPerm(tree.getRoot(), current, num,
-                               result, index)) {
-            return result;
+    auto currentNode = tree.root;
+    int currentNum = num;
+    int remainingSize = tree.size;
+    
+    while (currentNode && result.size() < static_cast<size_t>(tree.size)) {
+        if (currentNode->children.empty()) break;
+        
+        int permsPerChild = factorial(remainingSize - 1);
+        
+        int childIndex = (currentNum - 1) / permsPerChild;
+        
+        if (childIndex >= static_cast<int>(currentNode->children.size())) {
+            return std::vector<char>();
         }
+        
+        currentNode = currentNode->children[childIndex];
+        result.push_back(currentNode->value);
+        
+        currentNum = currentNum - childIndex * permsPerChild;
+        remainingSize--;
     }
-
-    return {};
+    
+    return result;
 }
