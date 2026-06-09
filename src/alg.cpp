@@ -1,59 +1,74 @@
 // Copyright 2022 NNTU-CS
-#include "../include/tree.h"
+#include "tree.h"
 
 #include <algorithm>
-#include <memory>
 #include <vector>
 
-// Конструктор дерева
-PMTree::PMTree(const std::vector<char>& symbols) {
-    size = symbols.size();
-    if (symbols.empty()) {
-        root = nullptr;
-        return;
-    }
+Node::Node(char v) : value(v), subtree_size(0) {}
 
+Node::~Node() {
+    for (Node* child : children) delete child;
+}
+
+PMTree::PMTree(const std::vector<char>& symbols) {
     std::vector<char> sorted = symbols;
     std::sort(sorted.begin(), sorted.end());
-
-    root = std::make_shared<Node>('\0');
-    buildTree(root, sorted);
-}
-
-// Построение дерева
-void PMTree::buildTree(std::shared_ptr<Node> node,
-                       std::vector<char> remaining) {
-    if (remaining.empty()) return;
-
-    for (char c : remaining) {
-        auto child = std::make_shared<Node>(c);
-        node->children.push_back(child);
-
-        std::vector<char> newRemaining;
-        for (char rc : remaining) {
-            if (rc != c) {
-                newRemaining.push_back(rc);
-            }
-        }
-        buildTree(child, newRemaining);
+    root = new Node('\0');
+    root->children = buildChildren(sorted);
+    root->subtree_size = 0;
+    for (Node* child : root->children) {
+        root->subtree_size += child->subtree_size;
     }
 }
 
-// Сбор всех перестановок
-void PMTree::collectPerms(std::shared_ptr<Node> node,
-                          std::vector<char>& current,
-                          std::vector<std::vector<char>>& result) const {
-    if (!node) return;
+PMTree::~PMTree() {
+    delete root;
+}
 
+Node* PMTree::getRoot() const {
+    return root;
+}
+
+std::vector<Node*> PMTree::buildChildren(std::vector<char> available) {
+    std::vector<Node*> result;
+    if (available.empty()) return result;
+
+    for (size_t i = 0; i < available.size(); ++i) {
+        char c = available[i];
+        Node* node = new Node(c);
+
+        std::vector<char> remaining;
+        remaining.reserve(available.size() - 1);
+        for (size_t j = 0; j < available.size(); ++j) {
+            if (j != i) remaining.push_back(available[j]);
+        }
+
+        node->children = buildChildren(remaining);
+
+        if (node->children.empty()) {
+            node->subtree_size = 1;
+        } else {
+            node->subtree_size = 0;
+            for (Node* child : node->children) {
+                node->subtree_size += child->subtree_size;
+            }
+        }
+        result.push_back(node);
+    }
+    return result;
+}
+
+void PMTree::collectPerms(Node* node, std::vector<char>& current,
+                          std::vector<std::vector<char>>& output) const {
     if (node->value != '\0') {
         current.push_back(node->value);
     }
 
-    if (current.size() == static_cast<size_t>(size)) {
-        result.push_back(current);
+    if (node->children.empty()) {
+        output.push_back(current);
     } else {
-        for (auto& child : node->children) {
-            collectPerms(child, current, result);
+        for (Node* child : node->children) {
+            collectPerms(child, current, output);
         }
     }
 
@@ -62,82 +77,39 @@ void PMTree::collectPerms(std::shared_ptr<Node> node,
     }
 }
 
-// Получение всех перестановок
-std::vector<std::vector<char>> getAllPerms(PMTree& tree) {
+std::vector<std::vector<char>> PMTree::getAllPerms() const {
     std::vector<std::vector<char>> result;
-    if (!tree.root || tree.size == 0) return result;
-
     std::vector<char> current;
-    tree.collectPerms(tree.root, current, result);
+    collectPerms(root, current, result);
     return result;
 }
 
-// Получение количества перестановок в поддереве
-int PMTree::getSubtreePermCount(std::shared_ptr<Node> node, int depth) const {
-    if (!node) return 0;
-    if (depth == 0) return 1;
-
-    int count = 0;
-    for (auto& child : node->children) {
-        count += getSubtreePermCount(child, depth - 1);
-    }
-    return count;
-}
-
-// Получение перестановки методом перебора
 std::vector<char> getPerm1(PMTree& tree, int num) {
-    if (num <= 0) return std::vector<char>();
-
-    auto allPerms = getAllPerms(tree);
-    if (num > static_cast<int>(allPerms.size())) {
-        return std::vector<char>();
-    }
-
-    return allPerms[num - 1];
+    if (num <= 0) return {};
+    auto all = tree.getAllPerms();
+    if (static_cast<size_t>(num) > all.size()) return {};
+    return all[num - 1];
 }
 
-// Факториал
-int factorial(int n) {
-    int result = 1;
-    for (int i = 2; i <= n; ++i) {
-        result *= i;
-    }
-    return result;
-}
-
-// Получение перестановки навигацией по дереву
 std::vector<char> getPerm2(PMTree& tree, int num) {
-    if (num <= 0 || !tree.root || tree.size == 0) {
-        return std::vector<char>();
-    }
-
-    int totalPerms = factorial(tree.size);
-    if (num > totalPerms) {
-        return std::vector<char>();
-    }
+    if (num <= 0) return {};
+    Node* root = tree.getRoot();
+    if (static_cast<size_t>(num) > root->subtree_size) return {};
 
     std::vector<char> result;
-    auto currentNode = tree.root;
-    int currentNum = num;
-    int remainingSize = tree.size;
+    Node* current = root;
+    int remaining = num;
 
-    while (currentNode &&
-           result.size() < static_cast<size_t>(tree.size)) {
-        if (currentNode->children.empty()) break;
-
-        int permsPerChild = factorial(remainingSize - 1);
-        int childIndex = (currentNum - 1) / permsPerChild;
-
-        if (childIndex >= static_cast<int>(currentNode->children.size())) {
-            return std::vector<char>();
+    while (!current->children.empty()) {
+        for (Node* child : current->children) {
+            if (static_cast<size_t>(remaining) <= child->subtree_size) {
+                result.push_back(child->value);
+                current = child;
+                break;
+            } else {
+                remaining -= static_cast<int>(child->subtree_size);
+            }
         }
-
-        currentNode = currentNode->children[childIndex];
-        result.push_back(currentNode->value);
-
-        currentNum = currentNum - childIndex * permsPerChild;
-        remainingSize--;
     }
-
     return result;
 }
