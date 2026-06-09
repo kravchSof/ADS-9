@@ -1,5 +1,5 @@
 // Copyright 2022 NNTU-CS
-#include "../include/tree.h"
+#include "tree.h"
 
 #include <chrono>
 #include <fstream>
@@ -8,7 +8,6 @@
 #include <random>
 #include <vector>
 
-// Функция для измерения времени выполнения
 template<typename Func>
 double measureTime(Func func) {
     auto start = std::chrono::high_resolution_clock::now();
@@ -18,7 +17,6 @@ double measureTime(Func func) {
     return duration.count();
 }
 
-// Генерация случайного номера перестановки
 int getRandomPermNumber(int maxPerms) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
@@ -26,7 +24,6 @@ int getRandomPermNumber(int maxPerms) {
     return dis(gen);
 }
 
-// Эксперимент с замерами времени
 void runExperiment() {
     std::vector<int> sizes = {3, 4, 5, 6, 7, 8};
     std::vector<double> timesGetAllPerms;
@@ -44,9 +41,12 @@ void runExperiment() {
             symbols.push_back('0' + (i % 10));
         }
 
+        int totalPerms = 1;
+        for (int i = 2; i <= n; ++i) totalPerms *= i;
+
         std::cout << "Размер n = " << n
                   << ", количество перестановок: "
-                  << factorial(n) << std::endl;
+                  << totalPerms << std::endl;
 
         auto treeCreateStart = std::chrono::high_resolution_clock::now();
         PMTree tree(symbols);
@@ -58,13 +58,13 @@ void runExperiment() {
                   << treeCreateTime << " мс" << std::endl;
 
         double getAllPermsTime = measureTime([&]() {
-            getAllPerms(tree);
+            tree.getAllPerms();
         });
         timesGetAllPerms.push_back(getAllPermsTime);
         std::cout << "  getAllPerms: " << getAllPermsTime << " мс"
                   << std::endl;
 
-        int permNum = getRandomPermNumber(factorial(n));
+        int permNum = getRandomPermNumber(totalPerms);
         std::cout << "  Случайный номер перестановки: "
                   << permNum << std::endl;
 
@@ -132,7 +132,6 @@ void runExperiment() {
     }
 }
 
-// Демонстрация работы функций
 void demonstrate() {
     std::cout << "\n=== Демонстрация работы функций ==="
               << std::endl;
@@ -141,7 +140,7 @@ void demonstrate() {
     PMTree tree1(symbols1);
 
     std::cout << "\nВсе перестановки для {1,2,3}:" << std::endl;
-    auto allPerms = getAllPerms(tree1);
+    auto allPerms = tree1.getAllPerms();
     for (size_t i = 0; i < allPerms.size(); ++i) {
         std::cout << "  " << (i+1) << ": ";
         for (char c : allPerms[i]) {
