@@ -1,5 +1,6 @@
 // Copyright 2022 NNTU-CS
 #include <chrono>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -23,6 +24,14 @@ int getRandomPermNumber(int maxPerms) {
     return dis(gen);
 }
 
+int factorial(int n) {
+    int result = 1;
+    for (int i = 2; i <= n; ++i) {
+        result *= i;
+    }
+    return result;
+}
+
 void runExperiment() {
     std::vector<int> sizes = {3, 4, 5, 6, 7, 8};
     std::vector<double> timesGetAllPerms;
@@ -40,8 +49,7 @@ void runExperiment() {
             symbols.push_back('0' + (i % 10));
         }
 
-        int totalPerms = 1;
-        for (int i = 2; i <= n; ++i) totalPerms *= i;
+        int totalPerms = factorial(n);
 
         std::cout << "Размер n = " << n
                   << ", количество перестановок: "
