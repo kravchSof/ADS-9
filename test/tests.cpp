@@ -1,6 +1,8 @@
 // Copyright 2020 GHA
 #include <gtest/gtest.h>
+
 #include <vector>
+
 #include "../include/tree.h"
 
 TEST(ads9, test1) {
